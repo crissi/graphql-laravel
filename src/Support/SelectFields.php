@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Arr;
 use RuntimeException;
+use GraphQL\Type\Definition\InterfaceType;
 
 class SelectFields
 {
@@ -108,13 +109,30 @@ class SelectFields
 
     protected static function getTableNameFromParentType(GraphqlType $parentType): ?string
     {
+        if (is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class)) {
+            $types = is_array($parentType->config['types']) ? $parentType->config['types'] : $parentType->config['types']();
+            if (!isset($types[0])) {
+                return null;
+            }
+            $parentType = $types[0];
+        }
+        
         return isset($parentType->config['model']) ? app($parentType->config['model'])->getTable() : null;
     }
 
     protected static function getPrimaryKeyFromParentType(GraphqlType $parentType): ?string
     {
+        if (is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class)) {
+            $types = is_array($parentType->config['types']) ? $parentType->config['types'] : $parentType->config['types']();
+            if (!isset($types[0])) {
+                return null;
+            }
+            $parentType = $types[0];
+        }
+
         return isset($parentType->config['model']) ? app($parentType->config['model'])->getKeyName() : null;
     }
+
 
     /**
      * Get the selects and withs from the given fields
@@ -152,11 +170,29 @@ class SelectFields
 
             // If field doesn't exist on definition we don't select it
             try {
-                if (method_exists($parentType, 'getField')) {
-                    $fieldObject = $parentType->getField($key);
-                } else {
-                    continue;
-                }
+
+                    $fieldObject = null;
+                    if (method_exists($parentType, 'hasField') && $parentType->hasField($key)) {
+                        $fieldObject = $parentType->getField($key);
+                    } elseif (is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class)) {
+                        if (array_key_exists('types', $parentType->config)) {
+                            $types = is_array($parentType->config['types']) ? $parentType->config['types'] : $parentType->config['types']();
+
+                            foreach($types as $type) {
+                                if ($type->hasField($key)) {
+                                    $fieldObject = $type->getField($key);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+
+                    if (!$fieldObject) {
+                        continue;
+                    }
+
+    
             } catch (InvariantViolation $e) {
                 continue;
             }
@@ -212,7 +248,8 @@ class SelectFields
                             false,
                             $ctx
                         );
-                    } elseif (is_a($parentTypeUnwrapped, \GraphQL\Type\Definition\InterfaceType::class)) {
+                    } elseif (is_a($parentTypeUnwrapped, InterfaceType::class)) {
+
                         static::handleInterfaceFields(
                             $queryArgs,
                             $field,
@@ -251,9 +288,8 @@ class SelectFields
             }
         }
 
-        // If parent type is an union or interface we select all fields
-        // because we don't know which other fields are required
-        if (is_a($parentType, UnionType::class) || is_a($parentType, \GraphQL\Type\Definition\InterfaceType::class)) {
+        // If we cannot determine the types for the union or interface we select all fields
+        if ((is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class)) && !array_key_exists('types', $parentType->config)) {
             $select = ['*'];
         }
     }

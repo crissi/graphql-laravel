@@ -127,10 +127,10 @@ class SelectFields
             if (!isset($types[0])) {
                 return null;
             }
-            $parentType = $types[0];
+            $type = $types[0];
         }
 
-        return isset($parentType->config['model']) ? $parentType->config['model'] : null;
+        return isset($type->config['model']) ? $type->config['model'] : null;
     }
 
 

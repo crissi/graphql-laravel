@@ -12,6 +12,9 @@ use GraphQL\Type\Definition\Type;
 
 class ItemType extends GraphQLType
 {
+    /**
+     * @var array<string,string>
+     */
     protected $attributes = [
         'name' => 'Item',
         'model' => CharacterItem::class,

@@ -13,10 +13,16 @@ use Rebing\GraphQL\Tests\Support\Models\Post;
 
 class CharacterInterfaceType extends InterfaceType
 {
+    /**
+     * @var array<string,string>
+     */
     protected $attributes = [
         'name' => 'CharacterInterface',
     ];
 
+    /**
+     * @return array<mixed>
+     */
     public function types(): array
     {
         return [
@@ -25,6 +31,9 @@ class CharacterInterfaceType extends InterfaceType
         ];
     }
 
+    /**
+     * @return array<string,mixed>
+     */
     public function fields(): array
     {
         return [
@@ -48,6 +57,10 @@ class CharacterInterfaceType extends InterfaceType
         ];
     }
 
+    /**
+     * @param mixed $root
+     * @return mixed
+     */
     public function resolveType($root)
     {
         if ($root->type === 'droid') {

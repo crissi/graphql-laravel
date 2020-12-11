@@ -13,11 +13,17 @@ use Rebing\GraphQL\Tests\Support\Models\Character;
 
 class HumanType extends GraphQLType
 {
+    /**
+     * @var array<string,string>
+     */
     protected $attributes = [
         'name' => 'Human',
         'model' => Character::class,
     ];
 
+    /**
+     * @return array<string,array>
+     */
     public function fields(): array
     {
         $interface = GraphQL::type('CharacterInterface');
@@ -35,6 +41,9 @@ class HumanType extends GraphQLType
             ] + $interface->getFields();
     }
 
+    /**
+     * @return array<mixed>
+     */
     public function interfaces(): array
     {
         return [

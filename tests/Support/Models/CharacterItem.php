@@ -8,5 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CharacterItem extends Model
 {
+    /**
+     * @var array<string>
+     */
     protected $guarded = ['id'];
 }

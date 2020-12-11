@@ -11,12 +11,18 @@ use Rebing\GraphQL\Tests\Support\Models\User;
 use Rebing\GraphQL\Tests\Support\Models\Character;
 
 class DroidType extends GraphQLType
-{
+{    
+    /**
+     * @var array<string,string>
+     */
     protected $attributes = [
         'name' => 'Droid',
         'model' => Character::class,
     ];
 
+    /**
+     * @return array<string,array>
+     */
     public function fields(): array
     {
         $interface = GraphQL::type('CharacterInterface');
@@ -31,7 +37,10 @@ class DroidType extends GraphQLType
             ],
         ] + $interface->getFields();
     }
-
+    
+    /**
+     * @return array<mixed>
+     */
     public function interfaces(): array
     {
         return [

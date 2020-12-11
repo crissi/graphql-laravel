@@ -269,7 +269,7 @@ GRAPHQL;
         $this->assertSqlQueries(
                 <<<'SQL'
 select "characters"."name", "characters"."id", "characters"."type" from "characters";
-select "name", "character_id" from "character_items" where "character_items"."character_id" in (?, ?) and "is_heavy" = ?;
+select "character_items"."name", "character_items"."character_id", "character_items"."id" from "character_items" where "character_items"."character_id" in (?, ?) and "is_heavy" = ?;
 SQL
             );
 

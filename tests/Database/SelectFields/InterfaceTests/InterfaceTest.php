@@ -11,128 +11,39 @@ use Rebing\GraphQL\Tests\Support\Models\Post;
 use Rebing\GraphQL\Tests\Support\Models\User;
 use Rebing\GraphQL\Tests\Support\Traits\SqlAssertionTrait;
 use Rebing\GraphQL\Tests\TestCaseDatabase;
+use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\CharactersQuery;
+use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\CharacterInterfaceType;
+use Rebing\GraphQL\Tests\Support\Models\Character;
 
 class InterfaceTest extends TestCaseDatabase
 {
     use SqlAssertionTrait;
 
-    public function testGeneratedSqlQuery(): void
+    public function testGeneratedInterfaceFieldsSqlQuery(): void
     {
-        factory(Post::class)->create([
-            'title' => 'Title of the post',
-        ]);
-
-        $graphql = <<<'GRAQPHQL'
-{
-  exampleInterfaceQuery {
-    title
-  }
-}
-GRAQPHQL;
-
-        $this->sqlCounterReset();
-
-        $result = $this->graphql($graphql);
-
-        $this->assertSqlQueries(
-            <<<'SQL'
-select * from "posts";
-SQL
-        );
-
-        $expectedResult = [
-            'data' => [
-                'exampleInterfaceQuery' => [
-                    [
-                        'title' => 'Title of the post',
-                    ],
-                ],
-            ],
-        ];
-        $this->assertSame($expectedResult, $result);
-    }
-
-    public function testGeneratedRelationSqlQuery(): void
-    {
-        $post = factory(Post::class)
+        $droid = factory(Character::class)
             ->create([
-                'title' => 'Title of the post',
+                'type' => 'droid',
             ]);
-        factory(Comment::class)
+
+        $human = factory(Character::class)
             ->create([
-                'title' => 'Title of the comment',
-                'post_id' => $post->id,
+                'type' => 'human',
             ]);
 
         $graphql = <<<'GRAPHQL'
 {
-  exampleInterfaceQuery {
+  charactersQuery {
     id
-    title
-    exampleRelation {
-      title
+    type
+    __typename
+    ... on Droid {
+        battery_left
+        identifier
     }
-  }
-}
-GRAPHQL;
-
-        $this->sqlCounterReset();
-
-        $result = $this->graphql($graphql);
-
-        $this->assertSqlQueries(
-            <<<'SQL'
-select * from "posts";
-select "comments"."title", "comments"."post_id", "comments"."id" from "comments" where "comments"."post_id" in (?) and "id" >= ? order by "comments"."id" asc;
-SQL
-        );
-
-        $expectedResult = [
-            'data' => [
-                'exampleInterfaceQuery' => [
-                    [
-                        'id' => (string) $post->id,
-                        'title' => 'Title of the post',
-                        'exampleRelation' => [
-                            [
-                                'title' => 'Title of the comment',
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-        ];
-        $this->assertSame($expectedResult, $result);
-    }
-
-    public function testGeneratedInterfaceFieldSqlQuery(): void
-    {
-        $post = factory(Post::class)
-            ->create([
-                'title' => 'Title of the post',
-            ]);
-        factory(Comment::class)
-            ->create([
-                'title' => 'Title of the comment',
-                'post_id' => $post->id,
-            ]);
-
-        $user = factory(User::class)->create();
-        Like::create([
-            'likable_id' => $post->id,
-            'likable_type' => Post::class,
-            'user_id' => $user->id,
-        ]);
-
-        $graphql = <<<'GRAPHQL'
-{
-  userQuery {
-    id
-    likes{
-      likable{
-        id
-        title
-      }
+    ... on Human {
+        hoursOfSleepNeeded
+        name
     }
   }
 }
@@ -144,25 +55,26 @@ GRAPHQL;
 
         $this->assertSqlQueries(
                 <<<'SQL'
-select "users"."id" from "users";
-select "likes"."likable_id", "likes"."likable_type", "likes"."user_id", "likes"."id" from "likes" where "likes"."user_id" in (?);
-select "id", "title" from "posts" where "posts"."id" in (?);
+select "characters"."hours_of_sleep_needed", "characters"."name", "characters"."battery_left", "characters"."id", "characters"."type" from "characters";
 SQL
             );
 
         $expectedResult = [
             'data' => [
-                'userQuery' => [
+                'charactersQuery' => [
                     [
-                        'id' => (string) $user->id,
-                        'likes' => [
-                            [
-                                'likable' => [
-                                    'id' => (string) $post->id,
-                                    'title' => $post->title,
-                                ],
-                            ],
-                        ],
+                        'id' => (string) $droid->id,
+                        'type' => 'droid',
+                        '__typename' => 'Droid',
+                        'battery_left' => $droid->battery_left,
+                        'identifier' => $droid->name,
+                    ],
+                    [
+                        'id' => (string) $human->id,
+                        'type' => 'human',
+                        '__typename' => 'Human',
+                        'hoursOfSleepNeeded' => $human->hours_of_sleep_needed,
+                        'name' => $human->name
                     ],
                 ],
             ],
@@ -170,32 +82,30 @@ SQL
         $this->assertSame($expectedResult, $result);
     }
 
-    public function testGeneratedInterfaceFieldIncludePrimaryKeySqlQuery(): void
+    public function testGeneratedInterfaceFieldsIncludesPrimaryKeysSqlQuery(): void
     {
-        $post = factory(Post::class)
+        $droid = factory(Character::class)
             ->create([
-                'title' => 'Title of the post',
-            ]);
-        factory(Comment::class)
-            ->create([
-                'title' => 'Title of the comment',
-                'post_id' => $post->id,
+                'type' => 'droid',
             ]);
 
-        $user = factory(User::class)->create();
-        Like::create([
-            'likable_id' => $post->id,
-            'likable_type' => Post::class,
-            'user_id' => $user->id,
-        ]);
+        $human = factory(Character::class)
+            ->create([
+                'type' => 'human',
+            ]);
 
         $graphql = <<<'GRAPHQL'
 {
-  userQuery {
-    likes{
-      likable{
-        title
-      }
+  charactersQuery {
+    type
+    __typename
+    ... on Droid {
+        battery_left
+        identifier
+    }
+    ... on Human {
+        hoursOfSleepNeeded
+        name
     }
   }
 }
@@ -204,25 +114,27 @@ GRAPHQL;
         $this->sqlCounterReset();
 
         $result = $this->graphql($graphql);
+
         $this->assertSqlQueries(
                 <<<'SQL'
-select "users"."id" from "users";
-select "likes"."likable_id", "likes"."likable_type", "likes"."user_id", "likes"."id" from "likes" where "likes"."user_id" in (?);
-select "posts"."title", "posts"."id" from "posts" where "posts"."id" in (?);
+select "characters"."hours_of_sleep_needed", "characters"."name", "characters"."battery_left", "characters"."type", "characters"."id" from "characters";
 SQL
             );
 
         $expectedResult = [
             'data' => [
-                'userQuery' => [
+                'charactersQuery' => [
                     [
-                        'likes' => [
-                            [
-                                'likable' => [
-                                    'title' => $post->title,
-                                ],
-                            ],
-                        ],
+                        'type' => 'droid',
+                        '__typename' => 'Droid',
+                        'battery_left' => $droid->battery_left,
+                        'identifier' => $droid->name,
+                    ],
+                    [
+                        'type' => 'human',
+                        '__typename' => 'Human',
+                        'hoursOfSleepNeeded' => $human->hours_of_sleep_needed,
+                        'name' => $human->name
                     ],
                 ],
             ],
@@ -231,114 +143,40 @@ SQL
     }
 
 
-    public function testGeneratedInterfaceFieldInlineFragmentsAndAlias(): void
-    {
-        $post = factory(Post::class)
-            ->create([
-                'title' => 'Title of the post',
-            ]);
-        factory(Comment::class)
-            ->create([
-                'title' => 'Title of the comment',
-                'post_id' => $post->id,
-            ]);
-
-        $user = factory(User::class)->create();
-        Like::create([
-            'likable_id' => $post->id,
-            'likable_type' => Post::class,
-            'user_id' => $user->id,
-        ]);
-
-        $graphql = <<<'GRAPHQL'
-{
-  userQuery {
-    id
-    likes{
-      likable{
-        id
-        title
-        ...on Post {
-          created_at
-          alias_updated_at
-        }
-      }
-    }
-  }
-}
-GRAPHQL;
-
-        $this->sqlCounterReset();
-
-        $result = $this->graphql($graphql);
-
-        $this->assertSqlQueries(
-                <<<'SQL'
-select "users"."id" from "users";
-select "likes"."likable_id", "likes"."likable_type", "likes"."user_id", "likes"."id" from "likes" where "likes"."user_id" in (?);
-select "created_at", "updated_at", "id", "title" from "posts" where "posts"."id" in (?);
-SQL
-        );
-
-        $expectedResult = [
-            'data' => [
-                'userQuery' => [
-                    [
-                        'id' => (string) $user->id,
-                        'likes' => [
-                            [
-                                'likable' => [
-                                    'id' => (string) $post->id,
-                                    'title' => $post->title,
-                                    'created_at' => $post->created_at->toDateTimeString(),
-                                    'alias_updated_at' => $post->updated_at->toDateTimeString(),
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-        ];
-        $this->assertSame($expectedResult, $result);
-    }
 
     public function testGeneratedInterfaceFieldWithRelationSqlQuery(): void
     {
-        $post = factory(Post::class)
+        $droid = factory(Character::class)
             ->create([
-                'title' => 'Title of the post',
+                'type' => 'droid',
+                'best_friend_id' => factory(Character::class)
+                    ->create([
+                        'type' => 'human',
+                    ])->id
             ]);
-        factory(Comment::class)
+            $human = factory(Character::class)
             ->create([
-                'title' => 'Title of the comment',
-                'post_id' => $post->id,
-            ]);
+                'type' => 'human',
+                'best_friend_id' => factory(Character::class)
+                ->create([
+                    'type' => 'droid',
+                    ])->id
+                ]);
+        //dd($droid->bestFriend);
 
-        $user = factory(User::class)->create();
-        $user2 = factory(User::class)->create();
-        $like1 = Like::create([
-            'likable_id' => $post->id,
-            'likable_type' => Post::class,
-            'user_id' => $user->id,
-        ]);
-        $like2 = Like::create([
-            'likable_id' => $post->id,
-            'likable_type' => Post::class,
-            'user_id' => $user2->id,
-        ]);
-
+        //$this->assertSqlQueries('');
         $graphql = <<<'GRAPHQL'
 {
-  userQuery {
-    id
-    likes{
-      likable{
+  charactersQuery {
+    bestFriend {
         id
-        title
-        likes{
-          id
-        }
-      }
+        __typename
+    }
+    ... on Droid {
+        identifier
+    }
+    ... on Human {
+        name
     }
   }
 }
@@ -347,57 +185,31 @@ GRAPHQL;
         $this->sqlCounterReset();
 
         $result = $this->graphql($graphql);
-
+        //dd($result);
         $this->assertSqlQueries(
                 <<<'SQL'
-select "users"."id" from "users";
-select "likes"."likable_id", "likes"."likable_type", "likes"."user_id", "likes"."id" from "likes" where "likes"."user_id" in (?, ?);
-select "id", "title" from "posts" where "posts"."id" in (?);
-select "likes"."id", "likes"."likable_id", "likes"."likable_type" from "likes" where "likes"."likable_id" in (?) and "likes"."likable_type" = ? and 0=0;
+select "characters"."name", "characters"."id", "characters"."type" from "characters";
+select "characters"."id", "characters"."best_friend_id", "characters"."type" from "characters" where "characters"."best_friend_id" in (?, ?, ?, ?);
 SQL
             );
 
-
         $expectedResult = [
             'data' => [
-                'userQuery' => [
+                'charactersQuery' => [
                     [
-                        'id' => (string) $user->id,
-                        'likes' => [
-                            [
-                                'likable' => [
-                                    'id' => (string) $post->id,
-                                    'title' => $post->title,
-                                    'likes' => [
-                                        [
-                                            'id' => (string) $like1->id,
-                                        ],
-                                        [
-                                            'id' => (string) $like2->id,
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
+                        'type' => 'droid',
+                        '__typename' => 'Droid',
+                        'battery_left' => $droid->battery_left,
+                        'identifier' => $droid->name,
+                        'bestFriend' => [
+                            'id' => $droid->bestFriend->id,
+                        ]
                     ],
                     [
-                        'id' => (string) $user2->id,
-                        'likes' => [
-                            [
-                                'likable' => [
-                                    'id' => (string) $post->id,
-                                    'title' => $post->title,
-                                    'likes' => [
-                                        [
-                                            'id' => (string) $like1->id,
-                                        ],
-                                        [
-                                            'id' => (string) $like2->id,
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
+                        'type' => 'human',
+                        '__typename' => 'Human',
+                        'hoursOfSleepNeeded' => $human->hours_of_sleep_needed,
+                        'name' => $human->name
                     ],
                 ],
             ],
@@ -432,7 +244,7 @@ SQL
 
         $graphql = <<<'GRAPHQL'
 {
-  userQuery {
+  charactersQuery {
     id
     likes{
       likable{
@@ -473,7 +285,7 @@ GRAPHQL;
 
         $expectedResult = [
             'data' => [
-                'userQuery' => [
+                'charactersQuery' => [
                     [
                         'id' => (string) $user->id,
                         'likes' => [
@@ -525,21 +337,19 @@ GRAPHQL;
         $app['config']->set('graphql.schemas.default', [
             'query' => [
                 ExampleInterfaceQuery::class,
-                UserQuery::class,
+                CharactersQuery::class,
             ],
         ]);
 
         $app['config']->set('graphql.schemas.custom', null);
 
         $app['config']->set('graphql.types', [
+            CharacterInterfaceType::class,
             ExampleInterfaceType::class,
             InterfaceImpl1Type::class,
             ExampleRelationType::class,
-            LikableInterfaceType::class,
-            PostType::class,
-            CommentType::class,
-            UserType::class,
-            LikeType::class,
+            DroidType::class,
+            HumanType::class,
         ]);
     }
 }

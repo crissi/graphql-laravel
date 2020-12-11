@@ -109,7 +109,7 @@ class SelectFields
 
     protected static function getTableNameFromParentType(GraphqlType $parentType): ?string
     {
-        if (is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class)) {
+        if (isset($parentType->config['types']) && (is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class))) {
             $types = is_array($parentType->config['types']) ? $parentType->config['types'] : $parentType->config['types']();
             if (!isset($types[0])) {
                 return null;
@@ -122,8 +122,9 @@ class SelectFields
 
     protected static function getPrimaryKeyFromParentType(GraphqlType $parentType): ?string
     {
-        if (is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class)) {
-            $types = is_array($parentType->config['types']) ? $parentType->config['types'] : $parentType->config['types']();
+        // we expect types to use the same model, so pick the table from the first type
+        if (isset($parentType->config['types']) && (is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class))) {
+            $types = (isset($parentType->config['types']) && is_array($parentType->config['types'])) ? $parentType->config['types'] : $parentType->config['types']();
             if (!isset($types[0])) {
                 return null;
             }

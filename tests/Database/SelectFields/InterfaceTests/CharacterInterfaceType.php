@@ -11,17 +11,17 @@ use Rebing\GraphQL\Support\InterfaceType;
 use Rebing\GraphQL\Tests\Support\Models\Comment;
 use Rebing\GraphQL\Tests\Support\Models\Post;
 
-class LikableInterfaceType extends InterfaceType
+class CharacterInterfaceType extends InterfaceType
 {
     protected $attributes = [
-        'name' => 'LikableInterface',
+        'name' => 'CharacterInterface',
     ];
 
     public function types(): array
     {
         return [
-            GraphQL::type('Post'),
-            GraphQL::type('Comment'),
+            GraphQL::type('Droid'),
+            GraphQL::type('Human'),
         ];
     }
 
@@ -31,25 +31,23 @@ class LikableInterfaceType extends InterfaceType
             'id' => [
                 'type' => Type::nonNull(Type::id()),
             ],
-            'title' => [
+            'type' => [
                 'type' => Type::nonNull(Type::string()),
             ],
-            'likes' => [
-                'type' => Type::listOf(GraphQL::type('Like')),
-                'query' => function (array $args, MorphMany $query) {
-                    return $query->whereRaw('1=1');
-                },
-            ],
+            'bestFriend' => [
+                'type' => GraphQL::type('CharacterInterface'),
+                'always' => 'type'
+            ]
         ];
     }
 
     public function resolveType($root)
     {
-        if ($root instanceof Post) {
-            return GraphQL::type('Post');
+        if ($root->type === 'droid') {
+            return GraphQL::type('Droid');
         }
-        if ($root instanceof Comment) {
-            return GraphQL::type('Comment');
+        if ($root->type === 'human') {
+            return GraphQL::type('Human');
         }
     }
 }

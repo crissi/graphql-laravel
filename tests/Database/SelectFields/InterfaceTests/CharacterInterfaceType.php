@@ -37,6 +37,13 @@ class CharacterInterfaceType extends InterfaceType
             'bestFriend' => [
                 'type' => GraphQL::type('CharacterInterface'),
                 'always' => 'type'
+            ],
+            'heavyItems' => [
+                'type' => Type::listOf(GraphQL::type('Item')),
+                'alias' => 'items',
+                'query' => function(array $params, $query) {
+                    return $query->where('is_heavy', 1);
+                }
             ]
         ];
     }

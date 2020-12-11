@@ -14,6 +14,7 @@ use Rebing\GraphQL\Tests\TestCaseDatabase;
 use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\CharactersQuery;
 use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\CharacterInterfaceType;
 use Rebing\GraphQL\Tests\Support\Models\Character;
+use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\ItemType;
 
 class InterfaceTest extends TestCaseDatabase
 {
@@ -162,20 +163,99 @@ SQL
                     'type' => 'droid',
                     ])->id
                 ]);
-        //dd($droid->bestFriend);
 
-        //$this->assertSqlQueries('');
         $graphql = <<<'GRAPHQL'
 {
   charactersQuery {
-    bestFriend {
-        id
-        __typename
-    }
     ... on Droid {
         identifier
     }
     ... on Human {
+        name
+    }
+    bestFriend {
+        id
+        __typename
+    }
+  }
+}
+GRAPHQL;
+
+        $this->sqlCounterReset();
+
+        $result = $this->graphql($graphql);
+
+        $this->assertSqlQueries(
+                <<<'SQL'
+select "characters"."name", "characters"."best_friend_id", "characters"."id", "characters"."type" from "characters";
+select "characters"."id", "characters"."type" from "characters" where "characters"."id" in (?, ?);
+SQL
+            );
+
+        $expectedResult = [
+            'data' => [
+                'charactersQuery' => [
+                    [
+                        'name' => $droid->bestFriend->name,
+                        'bestFriend' => null
+                    ],
+                    [
+                        'identifier' => $droid->name,
+                        'bestFriend' => [
+                            'id' => (string)$droid->bestFriend->id,
+                            '__typename' => 'Human'
+                        ]
+                    ],
+                    [
+                        'identifier' => $human->bestFriend->name,
+                        'bestFriend' => null
+                    ],
+                    [
+                        'name' => $human->name,
+                        'bestFriend' => [
+                            'id' => (string)$human->bestFriend->id,
+                            '__typename' => 'Droid'
+                        ]
+                    ],
+
+                ],
+            ],
+        ];
+        $this->assertSame($expectedResult, $result);
+    }
+
+    public function testGeneratedInterfaceFieldWithRelationAndCustomQueryOnInterfaceSqlQuery(): void
+    {
+        $droid = factory(Character::class)
+            ->create([
+                'type' => 'droid'
+            ]);
+
+        $droid->items()->create([
+            'name' => 'Hammer',
+            'is_heavy' => 1
+        ]);
+
+        $human = factory(Character::class)
+            ->create([
+                'type' => 'human'
+                ]);
+
+        $human->items()->create([
+            'name' => 'Screwdriver',
+            'is_heavy' => 0
+        ]);
+
+        $graphql = <<<'GRAPHQL'
+{
+  charactersQuery {
+    ... on Droid {
+        identifier
+    }
+    ... on Human {
+        name
+    }
+    heavyItems {
         name
     }
   }
@@ -185,11 +265,11 @@ GRAPHQL;
         $this->sqlCounterReset();
 
         $result = $this->graphql($graphql);
-        //dd($result);
+
         $this->assertSqlQueries(
                 <<<'SQL'
 select "characters"."name", "characters"."id", "characters"."type" from "characters";
-select "characters"."id", "characters"."best_friend_id", "characters"."type" from "characters" where "characters"."best_friend_id" in (?, ?, ?, ?);
+select "name", "character_id" from "character_items" where "character_items"."character_id" in (?, ?) and "is_heavy" = ?;
 SQL
             );
 
@@ -197,133 +277,18 @@ SQL
             'data' => [
                 'charactersQuery' => [
                     [
-                        'type' => 'droid',
-                        '__typename' => 'Droid',
-                        'battery_left' => $droid->battery_left,
                         'identifier' => $droid->name,
-                        'bestFriend' => [
-                            'id' => $droid->bestFriend->id,
+                        'heavyItems' => [
+                            [
+                                'name' => 'Hammer'
+                            ]
                         ]
                     ],
                     [
-                        'type' => 'human',
-                        '__typename' => 'Human',
-                        'hoursOfSleepNeeded' => $human->hours_of_sleep_needed,
-                        'name' => $human->name
+                        'name' => $human->name,
+                        'heavyItems' => []
                     ],
-                ],
-            ],
-        ];
-        $this->assertSame($expectedResult, $result);
-    }
 
-    public function testGeneratedInterfaceFieldWithRelationAndCustomQueryOnInterfaceSqlQuery(): void
-    {
-        $post = factory(Post::class)
-            ->create([
-                'title' => 'Title of the post',
-            ]);
-        $comment = factory(Comment::class)
-            ->create([
-                'title' => 'Title of the comment',
-                'post_id' => $post->id,
-            ]);
-
-        $user = factory(User::class)->create();
-        $user2 = factory(User::class)->create();
-        $like1 = Like::create([
-            'likable_id' => $comment->id,
-            'likable_type' => Comment::class,
-            'user_id' => $user->id,
-        ]);
-        $like2 = Like::create([
-            'likable_id' => $comment->id,
-            'likable_type' => Comment::class,
-            'user_id' => $user2->id,
-        ]);
-
-        $graphql = <<<'GRAPHQL'
-{
-  charactersQuery {
-    id
-    likes{
-      likable{
-        id
-        title
-        likes{
-          id
-        }
-      }
-    }
-  }
-}
-GRAPHQL;
-
-        $this->sqlCounterReset();
-
-        $result = $this->graphql($graphql);
-
-//         if (Application::VERSION < '5.6') {
-//             $this->assertSqlQueries(
-//                 <<<'SQL'
-// select "users"."id" from "users";
-// select "likes"."likable_id", "likes"."likable_type", "likes"."user_id", "likes"."id" from "likes" where "likes"."user_id" in (?, ?);
-// select * from "comments" where "comments"."id" in (?);
-// select "likes"."id", "likes"."likable_id", "likes"."likable_type" from "likes" where "likes"."likable_id" in (?) and "likes"."likable_type" = ? and 1=1;
-// SQL
-//             );
-//         } else {
-//             $this->assertSqlQueries(
-//                 <<<'SQL'
-// select "users"."id" from "users";
-// select "likes"."likable_id", "likes"."likable_type", "likes"."user_id", "likes"."id" from "likes" where "likes"."user_id" in (?, ?);
-// select * from "comments" where "comments"."id" in (?);
-// select "likes"."id", "likes"."likable_id", "likes"."likable_type" from "likes" where "likes"."likable_id" in (?) and "likes"."likable_type" = ? and 1=1;
-// SQL
-//             );
-//         }
-
-        $expectedResult = [
-            'data' => [
-                'charactersQuery' => [
-                    [
-                        'id' => (string) $user->id,
-                        'likes' => [
-                            [
-                                'likable' => [
-                                    'id' => (string) $comment->id,
-                                    'title' => $comment->title,
-                                    'likes' => [
-                                        [
-                                            'id' => (string) $like1->id,
-                                        ],
-                                        [
-                                            'id' => (string) $like2->id,
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ],
-                    [
-                        'id' => (string) $user2->id,
-                        'likes' => [
-                            [
-                                'likable' => [
-                                    'id' => (string) $comment->id,
-                                    'title' => $comment->title,
-                                    'likes' => [
-                                        [
-                                            'id' => (string) $like1->id,
-                                        ],
-                                        [
-                                            'id' => (string) $like2->id,
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ],
                 ],
             ],
         ];
@@ -344,6 +309,7 @@ GRAPHQL;
         $app['config']->set('graphql.schemas.custom', null);
 
         $app['config']->set('graphql.types', [
+            ItemType::class,
             CharacterInterfaceType::class,
             ExampleInterfaceType::class,
             InterfaceImpl1Type::class,

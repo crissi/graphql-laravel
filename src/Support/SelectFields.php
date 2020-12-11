@@ -109,29 +109,28 @@ class SelectFields
 
     protected static function getTableNameFromParentType(GraphqlType $parentType): ?string
     {
-        if (isset($parentType->config['types']) && (is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class))) {
-            $types = is_array($parentType->config['types']) ? $parentType->config['types'] : $parentType->config['types']();
-            if (!isset($types[0])) {
-                return null;
-            }
-            $parentType = $types[0];
-        }
-        
-        return isset($parentType->config['model']) ? app($parentType->config['model'])->getTable() : null;
+        $modelClass = self::getModelFromType($parentType);
+        return isset($modelClass) ? app($modelClass)->getTable() : null;
     }
 
     protected static function getPrimaryKeyFromParentType(GraphqlType $parentType): ?string
     {
-        // we expect types to use the same model, so pick the table from the first type
-        if (isset($parentType->config['types']) && (is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class))) {
-            $types = (isset($parentType->config['types']) && is_array($parentType->config['types'])) ? $parentType->config['types'] : $parentType->config['types']();
+        $modelClass = self::getModelFromType($parentType);
+        return isset($modelClass) ? app($modelClass)->getKeyName() : null;
+    }
+
+    protected static function getModelFromType(GraphqlType $type): ?string
+    {
+        // we combined types (union and interfaces) to use the same model, so the first type is picked
+        if (isset($type->config['types']) && (is_a($type, UnionType::class) || is_a($type, InterfaceType::class))) {
+            $types = (isset($type->config['types']) && is_array($type->config['types'])) ? $type->config['types'] : $type->config['types']();
             if (!isset($types[0])) {
                 return null;
             }
             $parentType = $types[0];
         }
 
-        return isset($parentType->config['model']) ? app($parentType->config['model'])->getKeyName() : null;
+        return isset($parentType->config['model']) ? $parentType->config['model'] : null;
     }
 
 
@@ -228,11 +227,11 @@ class SelectFields
                 }
                 // With
                 elseif (is_array($field['fields']) && $queryable) {
-                    if (isset($parentType->config['model'])) {
+                    if ($modelClass = self::getModelFromType($parentType)) {
                         // Get the next parent type, so that 'with' queries could be made
                         // Both keys for the relation are required (e.g 'id' <-> 'user_id')
                         $relationsKey = $fieldObject->config['alias'] ?? $key;
-                        $relation = call_user_func([app($parentType->config['model']), $relationsKey]);
+                        $relation = call_user_func([app($modelClass), $relationsKey]);
 
                         static::handleRelation($select, $relation, $parentTable, $field);
 

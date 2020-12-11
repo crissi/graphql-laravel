@@ -28,4 +28,9 @@ class Character extends Model
     {
         return $this->belongsTo(Character::class, 'best_friend_id');
     }
+
+    public function items()
+    {
+        return $this->hasMany(CharacterItem::class);
+    }
 }

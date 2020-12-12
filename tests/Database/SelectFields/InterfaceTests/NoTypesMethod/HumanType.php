@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests;
+namespace Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\NoTypesMethod;
 
 use GraphQL\Type\Definition\Type;
 use Illuminate\Database\Eloquent\Relations\MorphMany;

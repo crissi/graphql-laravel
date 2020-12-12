@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests;
+namespace Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\NoTypesMethod;
 
 use Illuminate\Foundation\Application;
 use Rebing\GraphQL\Tests\Support\Models\Comment;
@@ -11,14 +11,14 @@ use Rebing\GraphQL\Tests\Support\Models\Post;
 use Rebing\GraphQL\Tests\Support\Models\User;
 use Rebing\GraphQL\Tests\Support\Traits\SqlAssertionTrait;
 use Rebing\GraphQL\Tests\TestCaseDatabase;
-use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\CharactersQuery;
-use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\CharacterInterfaceType;
+use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\NoTypesMethod\CharactersQuery;
+use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\NoTypesMethod\CharacterInterfaceType;
 use Rebing\GraphQL\Tests\Support\Models\Character;
-use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\ItemType;
-use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\CharactersNoTypesQuery;
-use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\CharacterNoTypesInterface;
+use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\NoTypesMethod\ItemType;
+use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\NoTypesMethod\DroidType;
+use Rebing\GraphQL\Tests\Database\SelectFields\InterfaceTests\NoTypesMethod\HumanType;
 
-class InterfaceTest extends TestCaseDatabase
+class NoTypesMethodInterfaceTest extends TestCaseDatabase
 {
     use SqlAssertionTrait;
 
@@ -297,14 +297,13 @@ SQL
         $this->assertSame($expectedResult, $result);
     }
 
-
     protected function getEnvironmentSetUp($app)
     {
         parent::getEnvironmentSetUp($app);
 
         $app['config']->set('graphql.schemas.default', [
             'query' => [
-                CharactersQuery::class
+                CharactersQuery::class,
             ],
         ]);
 
@@ -314,7 +313,7 @@ SQL
             ItemType::class,
             CharacterInterfaceType::class,
             DroidType::class,
-            HumanType::class
+            HumanType::class,
         ]);
     }
 }

@@ -21,6 +21,7 @@ use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Arr;
 use RuntimeException;
 use GraphQL\Type\Definition\InterfaceType;
+use GraphQL\Type\Definition\ObjectType;
 
 class SelectFields
 {
@@ -172,7 +173,7 @@ class SelectFields
             try {
 
                     $fieldObject = null;
-                    if (method_exists($parentType, 'hasField') && $parentType->hasField($key)) {
+                    if (method_exists($parentType, 'hasField') && method_exists($parentType, 'getField') && $parentType->hasField($key)) {
                         $fieldObject = $parentType->getField($key);
                     } elseif (is_a($parentType, UnionType::class) || is_a($parentType, InterfaceType::class)) {
                         if (array_key_exists('types', $parentType->config)) {
@@ -231,11 +232,13 @@ class SelectFields
                         // Get the next parent type, so that 'with' queries could be made
                         // Both keys for the relation are required (e.g 'id' <-> 'user_id')
                         $relationsKey = $fieldObject->config['alias'] ?? $key;
+
                         $relation = call_user_func([app($modelClass), $relationsKey]);
 
                         static::handleRelation($select, $relation, $parentTable, $field);
 
                         // New parent type, which is the relation
+                        /** @var ObjectType $parentType */
                         $newParentType = $parentType->getField($key)->config['type'];
 
                         static::addAlwaysFields($fieldObject, $field, $parentTable, true);
